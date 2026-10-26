@@ -1,7 +1,6 @@
 package com.careerpilot.config;
 
 import com.careerpilot.security.CustomUserDetailsService;
-import com.careerpilot.config.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -61,19 +60,23 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
-            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)) // H2 Console
+            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
+                // Public authentication flows only. Development-token and account-management
+                // endpoints remain protected by the default authenticated rule.
                 .requestMatchers(
-                    "/api/auth/**",
-                    "/api/resumes/**",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/h2-console/**",
-                    "/actuator/**"
+                    "/api/auth/register",
+                    "/api/auth/login",
+                    "/api/auth/verify-email",
+                    "/api/auth/resend-verification",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password",
+                    "/api/auth/send-otp",
+                    "/api/auth/verify-otp"
                 ).permitAll()
+                // Resume content, API docs, H2 console, and actuator data are not public by default.
                 .anyRequest().authenticated()
             );
 
