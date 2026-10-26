@@ -1,17 +1,21 @@
 package com.careerpilot.controller;
 
 import com.careerpilot.domain.MasterResume;
+import com.careerpilot.domain.ResumeVersion;
 import com.careerpilot.dto.ResumeDTOs.*;
+import com.careerpilot.repository.ResumeVersionRepository;
 import com.careerpilot.security.SecurityUtils;
 import com.careerpilot.security.UserPrincipal;
 import com.careerpilot.service.ResumeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -23,6 +27,9 @@ public class ResumeController {
 
     @Autowired
     private ResumeService resumeService;
+
+    @Autowired
+    private ResumeVersionRepository resumeVersionRepository;
 
     @PostMapping("/upload-analyze")
     @Operation(summary = "Upload raw resume text and execute ATS score analysis")
@@ -102,8 +109,10 @@ public class ResumeController {
     public ResponseEntity<Void> deleteVersion(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable Long id) {
-        SecurityUtils.getRequiredUserId(userPrincipal);
-        resumeService.deleteVersion(id);
+        Long userId = SecurityUtils.getRequiredUserId(userPrincipal);
+        ResumeVersion version = resumeVersionRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resume version not found"));
+        resumeVersionRepository.delete(version);
         return ResponseEntity.noContent().build();
     }
 
@@ -115,7 +124,6 @@ public class ResumeController {
     }
 
     @PostMapping(value = "/export-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    @Operation(summary = "Export tailored resume as downloadable PDF document")
     public ResponseEntity<byte[]> exportPdf(@RequestBody ResumeExportRequest request) {
         byte[] pdfBytes = resumeService.generateResumePdfBytes(request.getTitle(), request.getContent());
         String filename = (request.getFileName() != null ? request.getFileName() : "careerpilot_resume") + ".pdf";
